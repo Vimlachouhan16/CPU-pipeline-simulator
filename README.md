@@ -12,7 +12,7 @@
 
 ## 🔗 Live Demo
 
-**👉 [https://your-username.github.io/pipeline-sim/](https://your-username.github.io/pipeline-sim/)**
+**👉 [https://your-username.github.io/pipeline-sim/](https://Vimlachouhan16.github.io/pipeline-sim/)**
 
 *(Replace `your-username` with your GitHub username after deployment)*
 
