@@ -10,7 +10,7 @@ This project is a **Pipeline Processor Simulator** that visually demonstrates ho
 It provides an interactive interface to understand:
 
 - Instruction execution flow  
-- Pipeline stages (IF, ID, EX, MEM, WB)  
+- Pipeline stages (IF, ID, EX, MEM, WB, WB2)  
 - Data hazards and forwarding  
 - Pipeline stalls  
 - Performance metrics (CPI, cycles, etc.)  
@@ -25,7 +25,7 @@ It provides an interactive interface to understand:
 
 ## ✨ Features
 
-- ⚙️ 5-stage pipeline simulation  
+- ⚙️ 6-stage pipeline simulation  
 - 🎯 Real-time pipeline visualization  
 - ⚠️ Hazard detection (RAW hazards)  
 - 🔄 Forwarding support  
@@ -44,7 +44,7 @@ It provides an interactive interface to understand:
 | EX | Execute |
 | MEM | Memory Access |
 | WB | Write Back |
-
+| WB2 | Write Back2 |
 ---
 
 ## Sample Instructions
