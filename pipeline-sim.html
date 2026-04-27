@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Processor // SIM</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#06060e;--panel:#0b0b18;--card:#10102000;
+  --border:rgba(100,180,255,0.12);--borderB:rgba(100,180,255,0.28);
+  --blue:#4fc3f7;--green:#00e676;--yellow:#ffd740;
+  --pink:#f50057;--violet:#ce93d8;--red:#ff1744;--cyan:#00e5ff;
+  --dim:#3a3a5a;--text:#ccd0e0;
+  --mono:'Share Tech Mono',monospace;--display:'Orbitron',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:12px;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(79,195,247,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(79,195,247,0.018) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0}
+
+/* ── HEADER ── */
+.hdr{position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;padding:11px 22px;background:rgba(11,11,24,0.98);border-bottom:1px solid var(--borderB);backdrop-filter:blur(14px)}
+.hdr-brand{display:flex;align-items:center;gap:12px}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--violet));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;animation:logoPulse 3s ease-in-out infinite}
+@keyframes logoPulse{0%,100%{box-shadow:0 0 12px rgba(79,195,247,0.5)}50%{box-shadow:0 0 30px rgba(79,195,247,1),0 0 55px rgba(206,147,216,0.4)}}
+.logo-txt h1{font-family:var(--display);font-size:13px;font-weight:700;color:var(--blue);letter-spacing:3px;text-shadow:0 0 14px rgba(79,195,247,0.7)}
+.logo-txt p{font-size:8px;color:var(--dim);letter-spacing:2px;margin-top:1px}
+.hdr-right{display:flex;gap:8px;align-items:center}
+.sbadge{font-family:var(--display);font-size:9px;padding:4px 13px;border-radius:20px;border:1px solid currentColor;letter-spacing:1px;transition:.2s}
+.s-ready{color:var(--dim);border-color:var(--dim)}
+.s-running{color:var(--green);border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,0.5);animation:blink 1s step-end infinite}
+.s-paused{color:var(--yellow);border-color:var(--yellow)}
+.s-done{color:var(--blue);border-color:var(--blue);box-shadow:0 0 12px rgba(79,195,247,0.5)}
+@keyframes blink{50%{opacity:.45}}
+.hdr-stat{font-family:var(--display);font-size:9px;padding:4px 11px;border-radius:20px;border:1px solid var(--border);color:var(--dim);letter-spacing:1px}
+.hdr-stat span{color:var(--blue)}
+
+/* ── LAYOUT ── */
+.app{position:relative;z-index:1;display:grid;grid-template-columns:275px 1fr;min-height:calc(100vh - 58px)}
+.sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;max-height:calc(100vh - 58px)}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--borderB);border-radius:2px}
+.main{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── PANEL ── */
+.panel{background:rgba(11,11,24,0.9);border-bottom:1px solid var(--border);padding:13px 15px}
+.phdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px}
+.ptitle{font-family:var(--display);font-size:9px;color:var(--blue);letter-spacing:2px;display:flex;align-items:center;gap:7px}
+.ptitle::before{content:'';display:inline-block;width:6px;height:6px;background:var(--blue);border-radius:50%;box-shadow:0 0 8px var(--blue)}
+.pbadge{font-size:8px;padding:2px 9px;border-radius:12px;background:rgba(79,195,247,0.08);border:1px solid rgba(79,195,247,0.22);color:var(--blue);letter-spacing:1px}
+.slbl{font-size:8px;letter-spacing:2px;color:var(--dim);margin-bottom:7px;text-transform:uppercase}
+
+/* ── TEXTAREA ── */
+textarea{width:100%;height:148px;background:rgba(6,6,14,0.9);border:1px solid var(--border);border-radius:8px;color:var(--green);font-family:var(--mono);font-size:11.5px;padding:9px;resize:vertical;outline:none;line-height:1.75;transition:border-color .2s}
+textarea:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(79,195,247,0.1)}
+
+/* ── PRESETS ── */
+.presets{display:flex;flex-direction:column;gap:4px}
+.pst{background:rgba(16,16,32,0.8);border:1px solid var(--border);border-radius:8px;color:var(--dim);font-family:var(--mono);font-size:10px;padding:6px 10px;cursor:pointer;text-align:left;transition:all .2s}
+.pst::before{content:'⟩ ';opacity:.4}
+.pst:hover,.pst.active{border-color:var(--blue);color:var(--blue);background:rgba(79,195,247,0.06)}
+
+/* ── CONFIG ── */
+.cfgrow{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.cfglbl{font-size:9px;color:var(--dim);letter-spacing:1px}
+.swrap{display:flex;align-items:center;gap:9px}
+.sval{font-family:var(--display);font-size:10px;color:var(--blue);min-width:68px;text-align:right}
+input[type=range]{-webkit-appearance:none;width:95px;height:3px;background:rgba(16,16,32,0.9);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--blue);cursor:pointer;box-shadow:0 0 10px var(--blue)}
+select{background:rgba(16,16,32,0.9);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:10px;padding:4px 8px;outline:none;cursor:pointer}
+select:focus{border-color:var(--blue)}
+
+/* ── LEGEND ── */
+.legend{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.lgitem{font-family:var(--display);font-size:8px;padding:3px 9px;border-radius:20px;letter-spacing:1px;font-weight:700}
+
+/* ── CONTROLS ── */
+.ctrlrow{display:flex;gap:6px;flex-wrap:wrap}
+.cbtn{display:flex;align-items:center;gap:5px;padding:8px 15px;border-radius:22px;border:1.5px solid transparent;font-family:var(--display);font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s;white-space:nowrap;font-weight:700}
+.cbtn:disabled{opacity:.22;cursor:not-allowed;pointer-events:none}
+.c-run  {background:rgba(0,230,118,0.14);border-color:var(--green);color:var(--green)}
+.c-pause{background:rgba(255,215,64,0.14);border-color:var(--yellow);color:var(--yellow)}
+.c-step {background:rgba(79,195,247,0.14);border-color:var(--blue);color:var(--blue)}
+.c-reset{background:rgba(255,23,68,0.14);border-color:var(--red);color:var(--red)}
+.c-run:hover  {background:rgba(0,230,118,0.30);box-shadow:0 0 18px rgba(0,230,118,0.5)}
+.c-pause:hover{background:rgba(255,215,64,0.30);box-shadow:0 0 18px rgba(255,215,64,0.5)}
+.c-step:hover {background:rgba(79,195,247,0.30);box-shadow:0 0 18px rgba(79,195,247,0.5)}
+.c-reset:hover{background:rgba(255,23,68,0.30);box-shadow:0 0 18px rgba(255,23,68,0.5)}
+.progwrap{background:rgba(6,6,14,0.9);border-radius:4px;height:4px;margin-top:10px;overflow:hidden;border:1px solid var(--border)}
+.progbar{height:100%;width:0%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:4px;transition:width .45s ease;box-shadow:0 0 10px rgba(79,195,247,0.6)}
+
+/* ── HAZARD LOG ── */
+.hzlog{max-height:158px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.hzlog::-webkit-scrollbar{width:3px}
+.hzlog::-webkit-scrollbar-thumb{background:var(--borderB)}
+.hzempty{color:var(--dim);font-size:10px;text-align:center;padding:18px 0}
+.hzok{color:var(--green);margin-right:5px}
+.hzsum{display:flex;gap:6px;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.hstag{font-family:var(--display);font-size:8px;padding:2px 8px;border-radius:12px;letter-spacing:1px}
+.hstag.raw{background:rgba(255,23,68,.12);color:var(--red);border:1px solid rgba(255,23,68,.3)}
+.hstag.fwd{background:rgba(0,230,118,.12);color:var(--green);border:1px solid rgba(0,230,118,.3)}
+.hstag.stl{background:rgba(255,215,64,.12);color:var(--yellow);border:1px solid rgba(255,215,64,.3)}
+.hzitem{display:flex;gap:7px;align-items:flex-start;padding:6px 8px;border-radius:8px;border-left:3px solid;animation:slideIn .28s ease}
+@keyframes slideIn{from{transform:translateX(-8px);opacity:0}to{transform:translateX(0);opacity:1}}
+.hzstall{background:rgba(255,23,68,.07);border-color:var(--red)}
+.hzfwd  {background:rgba(0,230,118,.07);border-color:var(--green)}
+.hzcyc{font-family:var(--display);font-size:8px;color:var(--dim);white-space:nowrap;padding-top:1px}
+.hztype{font-family:var(--display);font-size:8px;letter-spacing:1px;margin-bottom:1px}
+.hzstall .hztype{color:var(--red)}
+.hzfwd   .hztype{color:var(--green)}
+.hzrsn{font-size:9px;color:var(--dim);line-height:1.4}
+
+/* ── PIPELINE GRID ── */
+.gridscroll{overflow:auto;max-height:310px}
+.gridscroll::-webkit-scrollbar{height:5px;width:5px}
+.gridscroll::-webkit-scrollbar-track{background:var(--bg)}
+.gridscroll::-webkit-scrollbar-thumb{background:var(--borderB);border-radius:3px}
+.gw{display:inline-block;min-width:100%}
+.ghdr,.grow{display:flex;align-items:center}
+.ghdr{position:sticky;top:0;z-index:5;background:rgba(11,11,24,0.98);border-bottom:1px solid var(--borderB)}
+.gcell{flex:0 0 58px;height:40px;display:flex;align-items:center;justify-content:center;border-right:1px solid rgba(255,255,255,0.025);font-size:9px;letter-spacing:.5px}
+.glbl{flex:0 0 165px;justify-content:flex-start;padding-left:11px;font-family:var(--display);font-size:8px;color:var(--dim);letter-spacing:2px;border-right:1px solid var(--borderB);position:sticky;left:0;background:rgba(11,11,24,0.98);z-index:4}
+.gcychdr{font-family:var(--display);font-size:8px;color:var(--dim);letter-spacing:1px}
+.ginstr{flex:0 0 165px;justify-content:flex-start;gap:7px;padding-left:11px;border-right:1px solid var(--borderB);position:sticky;left:0;background:rgba(11,11,24,0.9);z-index:3}
+.grow{border-bottom:1px solid rgba(255,255,255,0.022)}
+.grow:hover{background:rgba(79,195,247,0.022)}
+.grow.act .ginstr{background:rgba(79,195,247,0.04)}
+.iid{font-family:var(--display);font-size:7px;color:var(--dim)}
+.iop{font-size:10.5px;color:var(--text)}
+/* THE KEY: rounded rectangle stage cells */
+.scell{
+  border-radius:10px;        /* curved rectangle */
+  margin:4px;
+  font-family:var(--display);
+  font-size:8.5px;
+  letter-spacing:1px;
+  font-weight:700;
+  cursor:default;
+  animation:cellPop .22s cubic-bezier(.34,1.56,.64,1);
+  flex:0 0 50px;
+  height:30px;
+}
+@keyframes cellPop{from{transform:scale(0.3);opacity:0}to{transform:scale(1);opacity:1}}
+.sempty{background:transparent;flex:0 0 58px;height:40px}
+.gridph{padding:42px 18px;text-align:center;color:var(--dim)}
+.phicon{font-size:38px;margin-bottom:12px;opacity:.22;animation:flt 3s ease-in-out infinite}
+@keyframes flt{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* ── BOTTOM ── */
+.bottom{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--border)}
+.botleft{border-right:1px solid var(--border);display:flex;flex-direction:column}
+
+/* ── METRICS ── */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.mcard{background:rgba(16,16,32,0.8);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center;transition:border-color .2s}
+.mcard:hover{border-color:var(--blue)}
+.mlbl{font-family:var(--display);font-size:7px;color:var(--dim);letter-spacing:2px;margin-bottom:3px}
+.mval{font-family:var(--display);font-size:21px;font-weight:700;color:var(--blue);text-shadow:0 0 12px rgba(79,195,247,0.5)}
+.mcard.g .mval{color:var(--green);text-shadow:0 0 12px rgba(0,230,118,0.5)}
+.mcard.p .mval{color:var(--violet);text-shadow:0 0 12px rgba(206,147,216,0.5)}
+.mcard.y .mval{color:var(--yellow);text-shadow:0 0 12px rgba(255,215,64,0.5)}
+.msub{font-size:8px;color:var(--dim);margin-top:1px}
+.mcard.s2{grid-column:span 2}
+
+/* ── CHARTS ── */
+.chartwrap{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chartbox{position:relative;height:142px}
+
+/* ── REGISTERS ── */
+.reggrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.rcell{background:rgba(16,16,32,0.8);border:1px solid var(--border);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:2px;transition:all .3s}
+.rcell:hover{border-color:var(--violet)}
+.rcell.upd{border-color:var(--green);box-shadow:0 0 12px rgba(0,230,118,0.25);animation:rflash .6s ease}
+@keyframes rflash{0%,100%{border-color:var(--green)}50%{border-color:var(--blue);box-shadow:0 0 18px rgba(79,195,247,0.5)}}
+.rname{font-family:var(--display);font-size:8px;color:var(--dim);letter-spacing:1px}
+.rval{font-family:var(--display);font-size:16px;color:var(--violet);text-shadow:0 0 8px rgba(206,147,216,0.5);transition:all .3s}
+.rcell.upd .rval{color:var(--green)}
+.fwdst{margin-top:13px}
+.fwdrow{font-size:10px;color:var(--dim);line-height:2.1;display:flex;align-items:center;gap:7px}
+.fon{color:var(--green)}
+.fwarn{color:var(--yellow)}
+
+/* ── FOOTER ── */
+.footer{position:relative;z-index:1;text-align:center;padding:8px;font-size:8px;color:var(--dim);border-top:1px solid var(--border);letter-spacing:2px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(72px);background:rgba(11,11,24,0.98);border:1px solid var(--blue);border-radius:9px;color:var(--blue);font-size:10px;padding:10px 20px;box-shadow:0 0 22px rgba(79,195,247,0.35);transition:transform .38s cubic-bezier(.34,1.56,.64,1),opacity .38s;opacity:0;z-index:1000;white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+@media(max-width:860px){
+  .app{grid-template-columns:1fr}
+  .sidebar{border-right:none;border-bottom:1px solid var(--border);max-height:none}
+  .bottom{grid-template-columns:1fr}
+  .botleft{border-right:none;border-bottom:1px solid var(--border)}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="logo">⬡</div>
+    <div class="logo-txt">
+      <h1>PIPELINE PROCESSOR // SIM</h1>
+      <p>EDUCATIONAL CPU PIPELINE VISUALIZER — V4.0</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="sbadge s-ready" id="statusBadge">● READY</div>
+    <div class="hdr-stat">STAGES <span id="hdrStages">5</span></div>
+    <div class="hdr-stat">CYCLE <span id="hdrCycle">0</span></div>
+    <div class="hdr-stat">CPI <span id="hdrCpi">—</span></div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="panel">
+      <div class="phdr"><div class="ptitle">01 // INSTRUCTION INPUT</div></div>
+      <div class="slbl">ASSEMBLY SOURCE</div>
+      <textarea id="instrInput" spellcheck="false">LOAD R1, R0, 10
+ADD R2, R1, R1
+SUB R3, R2, R1
+MUL R4, R3, R2
+AND R5, R4, R3
+OR R6, R5, R4</textarea>
+      <div class="slbl" style="margin-top:11px">SAMPLE PROGRAMS</div>
+      <div class="presets" id="presets"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phdr"><div class="ptitle">01b // PIPELINE CONFIG</div></div>
+      <div class="cfgrow">
+        <span class="cfglbl">STAGES</span>
+        <div class="swrap">
+          <input type="range" id="stageSlider" min="2" max="6" value="5" step="1">
+          <span class="sval" id="stageLabel">5 STAGES</span>
+        </div>
+      </div>
+      <div class="cfgrow">
+        <span class="cfglbl">SPEED</span>
+        <select id="speedSel">
+          <option value="1200">0.5x SLOW</option>
+          <option value="700" selected>1x NORMAL</option>
+          <option value="320">2x FAST</option>
+          <option value="90">4x TURBO</option>
+        </select>
+      </div>
+      <div class="slbl" style="margin-top:7px">STAGE LEGEND</div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="panel">
+      <div class="phdr"><div class="ptitle">02 // CONTROLS</div></div>
+      <div class="ctrlrow">
+        <button class="cbtn c-run"   id="btnRun">▶ RUN</button>
+        <button class="cbtn c-pause" id="btnPause" disabled>⏸ PAUSE</button>
+        <button class="cbtn c-step"  id="btnStep">⏭ STEP</button>
+        <button class="cbtn c-reset" id="btnReset">↺ RESET</button>
+      </div>
+      <div class="progwrap"><div class="progbar" id="progBar"></div></div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="phdr"><div class="ptitle">03 // HAZARD DETECTION</div></div>
+      <div class="hzlog" id="hzLog">
+        <div class="hzempty"><span class="hzok">✓</span> No hazards detected.</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="panel" style="flex-shrink:0">
+      <div class="phdr">
+        <div class="ptitle">04 // PIPELINE VISUALIZATION</div>
+        <div class="pbadge" id="cycleBadge">CYCLE 0</div>
+      </div>
+      <div class="gridscroll">
+        <div id="pGrid">
+          <div class="gridph"><div class="phicon">⬡</div><p>Press <strong style="color:var(--green)">RUN</strong> or <strong style="color:var(--blue)">STEP</strong> to begin simulation</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom" style="flex:1">
+      <div class="botleft">
+        <div class="panel">
+          <div class="phdr"><div class="ptitle">05 // PERFORMANCE METRICS</div></div>
+          <div class="metrics">
+            <div class="mcard">   <div class="mlbl">CYCLES</div>    <div class="mval" id="mCycles">0</div>   <div class="msub">elapsed</div></div>
+            <div class="mcard g"> <div class="mlbl">CPI</div>       <div class="mval" id="mCpi">—</div>      <div class="msub">cycles/instr</div></div>
+            <div class="mcard p"> <div class="mlbl">SPEEDUP</div>   <div class="mval" id="mSpeedup">—</div>  <div class="msub">vs sequential</div></div>
+            <div class="mcard">   <div class="mlbl">COMPLETED</div> <div class="mval" id="mInstrs" style="font-size:14px">0/0</div><div class="msub">instructions</div></div>
+            <div class="mcard y s2"><div class="mlbl">STALL CYCLES</div><div class="mval" id="mStalls">0</div><div class="msub">inserted for hazards</div></div>
+          </div>
+        </div>
+        <div class="panel" style="flex:1">
+          <div class="phdr"><div class="ptitle">06 // PERFORMANCE GRAPH</div></div>
+          <div class="chartwrap">
+            <div><div class="slbl" style="margin-bottom:5px">PIPELINE vs NON-PIPELINE</div><div class="chartbox"><canvas id="barChart"></canvas></div></div>
+            <div><div class="slbl" style="margin-bottom:5px">CPI OVER TIME</div><div class="chartbox"><canvas id="lineChart"></canvas></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="height:100%">
+        <div class="phdr"><div class="ptitle">07 // REGISTER FILE</div></div>
+        <div class="reggrid" id="regFile"></div>
+        <div class="fwdst">
+          <div class="ptitle" style="font-size:8px;margin-bottom:7px">FORWARDING UNIT</div>
+          <div class="fwdrow">⚡ EX→ID forwarding: <span class="fon">ENABLED</span></div>
+          <div class="fwdrow">⚡ MEM→EX forwarding: <span class="fon">ENABLED</span></div>
+          <div class="fwdrow">⚠ Load-use stall: <span class="fwarn">1 cycle inserted</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="footer">// RAW HAZARDS · EX→ID FORWARDING · LOAD-USE STALLS · SEQUENTIAL ISSUE //</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════
+//  PIPELINE PROCESSOR SIM V4
+//  Fixed: sequential execution, correct registers,
+//         rounded cells, new color scheme
+// ═══════════════════════════════════════════════════════
+
+// Stage definitions per pipeline depth
+const STAGE_NAMES = {
+  2: ['IF','WB'],
+  3: ['IF','EX','WB'],
+  4: ['IF','ID','EX','WB'],
+  5: ['IF','ID','EX','MEM','WB'],
+  6: ['IF','ID','EX','MEM','WB','WB2']
+};
+
+// Stage colors: blue, green, yellow, pink/magenta, violet, red(stall)
+const SC = {
+  IF:   { bg:'#1565c0', tx:'#90caf9', brd:'#4fc3f7', gw:'0 0 12px rgba(79,195,247,0.7)'  },
+  ID:   { bg:'#1b5e20', tx:'#a5d6a7', brd:'#00e676', gw:'0 0 12px rgba(0,230,118,0.7)'   },
+  EX:   { bg:'#f57f17', tx:'#fff176', brd:'#ffd740', gw:'0 0 12px rgba(255,215,64,0.7)'  },
+  MEM:  { bg:'#880e4f', tx:'#f48fb1', brd:'#f50057', gw:'0 0 12px rgba(245,0,87,0.7)'    },
+  WB:   { bg:'#4a148c', tx:'#e1bee7', brd:'#ce93d8', gw:'0 0 12px rgba(206,147,216,0.7)' },
+  WB2:  { bg:'#311b92', tx:'#d1c4e9', brd:'#b39ddb', gw:'0 0 12px rgba(179,157,219,0.7)' },
+  STALL:{ bg:'#b71c1c', tx:'#ffcdd2', brd:'#ff1744', gw:'0 0 12px rgba(255,23,68,0.8)'   }
+};
+
+// Presets
+const PRESETS = {
+  'RAW + FORWARD':  'LOAD R1, R0, 10\nADD R2, R1, R1\nSUB R3, R2, R1\nMUL R4, R3, R2\nAND R5, R4, R3\nOR R6, R5, R4',
+  'LOAD-USE STALL': 'LOAD R1, R0, 4\nADD R2, R1, R0\nSUB R3, R1, R2\nOR R4, R3, R2',
+  'INDEPENDENT':    'ADD R1, R0, R0\nADD R2, R0, R0\nADD R3, R0, R0\nSUB R4, R0, R0\nMUL R5, R0, R0\nOR R6, R0, R0',
+  'MIXED OPS':      'LOAD R1, R0, 5\nADD R2, R1, R1\nSTORE R2, R0, 4\nSUB R3, R2, R1\nMUL R4, R3, R2\nAND R5, R4, R3'
+};
+
+// ── PARSER ────────────────────────────────────────────
+function parseInstrs(text) {
+  return text.trim().split('\n')
+    .filter(l => l.trim() && !l.trim().startsWith('//'))
+    .map((line, idx) => {
+      const raw = line.trim();
+      const clean = raw.toUpperCase().replace(/,/g,' ').replace(/\s+/g,' ');
+      const p = clean.split(' '), op = p[0];
+      let dest=null, src1=null, src2=null, imm=null;
+      if (['ADD','SUB','AND','OR','MUL','XOR','SLT'].includes(op)) {
+        dest=p[1]; src1=p[2]; src2=p[3];
+      } else if (['ADDI','SUBI','ANDI','ORI','XORI'].includes(op)) {
+        dest=p[1]; src1=p[2]; imm=p[3];
+      } else if (op==='LOAD'||op==='LW') {
+        dest=p[1]; src1=p[2]; imm=p[3]||'0';
+      } else if (op==='STORE'||op==='SW') {
+        src1=p[1]; src2=p[2]; imm=p[3]||'0';
+      } else if (op==='MOV') {
+        dest=p[1]; src1=p[2];
+      } else {
+        dest=p[1]||null; src1=p[2]||null; src2=p[3]||null;
+      }
+      return { id:idx, raw, op, dest, src1, src2, imm };
+    });
+}
+
+// ── SIMULATOR ─────────────────────────────────────────
+// Pre-computes the full pipeline schedule, then plays it back cycle by cycle.
+class Sim {
+  constructor(instrs, nStages) {
+    this.instrs = instrs;
+    this.n = nStages;
+    this.stages = STAGE_NAMES[nStages];
+    this._build();
+  }
+
+  // Build complete schedule
+  _build() {
+    const { instrs, n, stages } = this;
+    const N = instrs.length;
+    const idxIF  = 0;
+    const idxID  = stages.indexOf('ID');
+    const idxEX  = stages.indexOf('EX');
+    const idxMEM = stages.indexOf('MEM');
+    const idxWB  = stages.lastIndexOf('WB');
+
+    // instrStart[i] = cycle when instr i enters IF stage (1-based cycles)
+    const instrStart = new Array(N).fill(0);
+
+    // timeline[i] = array of { cycle, stage, type:'normal'|'stall' }
+    const timeline = instrs.map(() => []);
+
+    for (let i = 0; i < N; i++) {
+      // Default: start one cycle after previous instruction
+      let start = i === 0 ? 1 : instrStart[i-1] + 1;
+
+      // Find the maximum stall required by any RAW dependency
+      const instr = instrs[i];
+      const srcs = [instr.src1, instr.src2].filter(s => s && /^R\d+$/i.test(s));
+
+      let stallsNeeded = 0;
+
+      for (let j = 0; j < i; j++) {
+        const prev = instrs[j];
+        if (!prev.dest || !/^R\d+$/i.test(prev.dest)) continue;
+        if (!srcs.map(s=>s.toUpperCase()).includes(prev.dest.toUpperCase())) continue;
+
+        const isLoad = prev.op === 'LOAD' || prev.op === 'LW';
+
+        if (idxID >= 0 && idxEX >= 0) {
+          // cycle when j finishes EX: instrStart[j] + idxEX
+          const jEXcycle = instrStart[j] + idxEX;
+          // cycle when i would be in ID without stalls: start + idxID
+          const iIDcycle = start + idxID;
+
+          if (isLoad) {
+            // Load-use: need 1 stall — result available after MEM
+            // i's EX must come after j's MEM
+            const jMEMcycle = instrStart[j] + (idxMEM >= 0 ? idxMEM : idxEX);
+            // i's EX cycle: start + idxEX + stallsNeeded
+            // Need: start + idxEX + stallsNeeded > jMEMcycle
+            const needed = jMEMcycle - idxEX - start + 1;
+            if (needed > 0) stallsNeeded = Math.max(stallsNeeded, needed);
+          } else {
+            // ALU: can forward from EX — i's ID must not overlap j's EX
+            // With forwarding, i can use result when j is in EX
+            // Stall only if i's ID comes before j's EX
+            if (iIDcycle < jEXcycle) {
+              const needed = jEXcycle - iIDcycle;
+              stallsNeeded = Math.max(stallsNeeded, needed);
+            }
+          }
+        } else if (idxEX >= 0) {
+          // Small pipelines without ID
+          const jEXcycle = instrStart[j] + idxEX;
+          const iEXcycle = start + idxEX;
+          if (isLoad && iEXcycle <= jEXcycle) {
+            stallsNeeded = Math.max(stallsNeeded, jEXcycle - iEXcycle + 1);
+          }
+        }
+      }
+
+      start += stallsNeeded;
+      instrStart[i] = start;
+
+      // Build this instruction's timeline
+      // Normal stages go at: start, start+1, start+2, ...
+      // But if there are stalls, the ID stage repeats (shows as STALL)
+      let c = start;
+      for (let si = 0; si < n; si++) {
+        const sname = stages[si];
+        if (si === idxID && stallsNeeded > 0) {
+          // Insert stall bubbles at ID before moving on
+          for (let s = 0; s < stallsNeeded; s++) {
+            timeline[i].push({ cycle: c, stage: sname, type: 'stall' });
+            c++;
+          }
+        }
+        timeline[i].push({ cycle: c, stage: sname, type: 'normal' });
+        c++;
+      }
+    }
+
+    this._timeline = timeline;
+    this._instrStart = instrStart;
+
+    // Total cycles = last cycle of last timeline entry across all instructions
+    this._totalCycles = Math.max(...timeline.map(t => t.length ? t[t.length-1].cycle : 0));
+
+    // Pre-compute correct register values
+    this._buildRegState(idxWB, idxEX, idxMEM);
+
+    // Pre-compute hazard annotations
+    this._buildHazards(instrStart, idxID, idxEX, idxMEM, stages);
+  }
+
+  _buildRegState(idxWB, idxEX, idxMEM) {
+    const { instrs, _timeline } = this;
+
+    // For each instruction, find when it writes back (WB stage cycle)
+    // Then compute register values by simulating in WB order
+
+    // Step 1: collect WB events sorted by cycle
+    const wbEvents = [];
+    instrs.forEach((instr, i) => {
+      const t = _timeline[i];
+      const wbEntry = t.find(e => e.stage === 'WB' && e.type === 'normal');
+      if (wbEntry) wbEvents.push({ cycle: wbEntry.cycle, instrIdx: i });
+    });
+    wbEvents.sort((a, b) => a.cycle - b.cycle || a.instrIdx - b.instrIdx);
+
+    // Step 2: simulate registers through WB events, capturing state at each cycle
+    // Start: all registers = 0
+    const regs = {};
+    for (let r = 0; r <= 7; r++) regs['R'+r] = 0;
+
+    // regsByCycle[c] = register snapshot after cycle c
+    const regsByCycle = {};
+    regsByCycle[0] = { ...regs };
+
+    let evtIdx = 0;
+    for (let c = 1; c <= this._totalCycles + 1; c++) {
+      // Copy previous state
+      const cur = { ...(regsByCycle[c-1] || regs) };
+      // Apply any WB events happening at cycle c
+      while (evtIdx < wbEvents.length && wbEvents[evtIdx].cycle === c) {
+        const { instrIdx } = wbEvents[evtIdx];
+        const instr = instrs[instrIdx];
+        // Compute result using register values that were available at EX time
+        // For correctness, find register values at time instruction entered EX
+        const exEntry = _timeline[instrIdx].find(e => e.stage === 'EX' && e.type === 'normal');
+        const exCycle = exEntry ? exEntry.cycle : c;
+        const regsAtEX = regsByCycle[exCycle - 1] || regsByCycle[0];
+        this._applyInstr(instr, cur, regsAtEX);
+        evtIdx++;
+      }
+      regsByCycle[c] = cur;
+    }
+
+    this._regsByCycle = regsByCycle;
+    this._wbEvents = wbEvents;
+  }
+
+  _applyInstr(instr, destRegs, srcRegs) {
+    const { op, dest, src1, src2, imm } = instr;
+    if (!dest || dest === 'R0') return;
+    const a = srcRegs[src1] !== undefined ? srcRegs[src1] : 0;
+    const immVal = parseInt(imm) || 0;
+    const b = src2 ? (srcRegs[src2] !== undefined ? srcRegs[src2] : 0) : immVal;
+    let r;
+    switch (op) {
+      case 'ADD': case 'ADDI': r = a + b; break;
+      case 'SUB': case 'SUBI': r = a - b; break;
+      case 'AND': case 'ANDI': r = a & b; break;
+      case 'OR':  case 'ORI':  r = a | b; break;
+      case 'MUL':              r = a * b; break;
+      case 'XOR': case 'XORI': r = a ^ b; break;
+      case 'MOV':              r = a;     break;
+      case 'LOAD': case 'LW':  r = a + immVal; break;
+      default:                 r = a + b;
+    }
+    destRegs[dest] = r;
+  }
+
+  _buildHazards(instrStart, idxID, idxEX, idxMEM, stages) {
+    const { instrs } = this;
+    const hazards = [];
+    for (let i = 0; i < instrs.length; i++) {
+      const instr = instrs[i];
+      const srcs = [instr.src1, instr.src2].filter(s => s && /^R\d+$/i.test(s));
+      for (let j = 0; j < i; j++) {
+        const prev = instrs[j];
+        if (!prev.dest || !srcs.map(s=>s.toUpperCase()).includes(prev.dest.toUpperCase())) continue;
+        const isLoad = prev.op === 'LOAD' || prev.op === 'LW';
+        // Was there a stall?
+        const naturalStart = j === 0 ? 1 : instrStart[j] + 1;
+        const actualStart = instrStart[i];
+        const stalled = actualStart > (i === 0 ? 1 : instrStart[i-1] + 1);
+        const jEXcycle = instrStart[j] + idxEX;
+
+        if (stalled) {
+          hazards.push({
+            cycle: jEXcycle,
+            reason: (isLoad ? 'Load-use: ' : 'RAW stall: ') + prev.raw + ' → ' + instr.raw,
+            fwd: false
+          });
+        } else if (idxEX >= 0) {
+          const iIDcycle = actualStart + (idxID >= 0 ? idxID : 0);
+          if (jEXcycle >= iIDcycle - 1 && j >= 0) {
+            hazards.push({
+              cycle: jEXcycle,
+              reason: 'Forward EX→ID: ' + prev.dest + ' from ' + prev.raw,
+              fwd: true
+            });
+          }
+        }
+      }
+    }
+    // Remove duplicates (same cycle+reason)
+    this._hazards = hazards.filter((h, i) =>
+      hazards.findIndex(x => x.cycle === h.cycle && x.reason === h.reason) === i
+    );
+  }
+
+  // ── PLAYBACK ──────────────────────────────────────────
+  resetPlayback() {
+    this.cycle = 0;
+    this.done = false;
+  }
+
+  step() {
+    if (this.done) return false;
+    this.cycle++;
+    if (this.cycle >= this._totalCycles) this.done = true;
+    return true;
+  }
+
+  getRegs()     { return this._regsByCycle[this.cycle]           || this._regsByCycle[0] || {}; }
+  getPrevRegs() { return this._regsByCycle[Math.max(0,this.cycle-1)] || this._regsByCycle[0] || {}; }
+
+  getCompleted() {
+    return this._timeline.filter(t => t.length && t[t.length-1].cycle <= this.cycle).length;
+  }
+
+  getTotalStalls() {
+    return this._timeline.reduce((sum, t) => sum + t.filter(e => e.type==='stall').length, 0);
+  }
+
+  getStallsUpTo() {
+    return this._timeline.reduce((sum, t) =>
+      sum + t.filter(e => e.type==='stall' && e.cycle <= this.cycle).length, 0);
+  }
+
+  getVisibleHazards() {
+    return this._hazards.filter(h => h.cycle <= this.cycle);
+  }
+
+  getCPI() {
+    const c = this.getCompleted();
+    return c ? (this.cycle / c).toFixed(2) : '—';
+  }
+  getNPC()      { return this.instrs.length * this.n; }
+  getSpeedup()  { return this.cycle ? (this.getNPC() / this.cycle).toFixed(2) : '—'; }
+}
+
+// ── APPLICATION ──────────────────────────────────────
+let sim=null, timer=null, cpiHist=[], barCh=null, lineCh=null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  buildPresets();
+  buildLegend(5);
+  buildRegFile({}, {});
+  document.getElementById('stageSlider').oninput = e => {
+    document.getElementById('stageLabel').textContent = e.target.value + ' STAGES';
+    document.getElementById('hdrStages').textContent  = e.target.value;
+    buildLegend(+e.target.value);
+  };
+  document.getElementById('btnRun').onclick   = doRun;
+  document.getElementById('btnPause').onclick = doPause;
+  document.getElementById('btnStep').onclick  = doStep;
+  document.getElementById('btnReset').onclick = doReset;
+});
+
+function buildPresets() {
+  const c = document.getElementById('presets'); c.innerHTML = '';
+  Object.keys(PRESETS).forEach(name => {
+    const b = document.createElement('button');
+    b.className = 'pst'; b.textContent = name;
+    b.onclick = () => {
+      document.getElementById('instrInput').value = PRESETS[name];
+      document.querySelectorAll('.pst').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+    c.appendChild(b);
+  });
+}
+
+function buildLegend(n) {
+  const c = document.getElementById('legend'); c.innerHTML = '';
+  STAGE_NAMES[n].forEach(s => {
+    const col = SC[s] || SC.STALL;
+    const el = document.createElement('span');
+    el.className = 'lgitem';
+    el.style.cssText = `background:${col.bg};color:${col.tx};border:1.5px solid ${col.brd};box-shadow:${col.gw}`;
+    el.textContent = s; c.appendChild(el);
+  });
+}
+
+function buildRegFile(regs, prevRegs) {
+  const c = document.getElementById('regFile'); c.innerHTML = '';
+  for (let i = 0; i <= 7; i++) {
+    const k = 'R' + i;
+    const val  = regs[k]     !== undefined ? regs[k]     : 0;
+    const prev = prevRegs[k] !== undefined ? prevRegs[k] : 0;
+    const changed = JSON.stringify(val) !== JSON.stringify(prev);
+    const d = document.createElement('div');
+    d.className = 'rcell' + (changed ? ' upd' : '');
+    d.innerHTML = `<span class="rname">${k}</span><span class="rval">${val}</span>`;
+    c.appendChild(d);
+  }
+}
+
+function getN()     { return +document.getElementById('stageSlider').value; }
+function getDelay() { return +document.getElementById('speedSel').value; }
+
+function mkSim() {
+  stopTimer();
+  const txt = document.getElementById('instrInput').value.trim();
+  if (!txt) { toast('⚠ Enter instructions first!'); return null; }
+  const instrs = parseInstrs(txt);
+  if (!instrs.length) { toast('⚠ No valid instructions found!'); return null; }
+  try {
+    const s = new Sim(instrs, getN());
+    s.resetPlayback();
+    cpiHist = []; destroyCharts();
+    return s;
+  } catch(e) { toast('Error: ' + e.message); console.error(e); return null; }
+}
+
+function doRun() {
+  if (!sim || sim.done) { sim = mkSim(); if (!sim) return; }
+  if (timer) return;
+  setStatus('running'); setCtrl('running'); tick();
+}
+function tick() {
+  timer = setTimeout(() => {
+    if (!sim || sim.done) { stopTimer(); finalize(); return; }
+    advance(); tick();
+  }, getDelay());
+}
+function doPause() { stopTimer(); setStatus('paused'); setCtrl('paused'); }
+function doStep() {
+  if (!sim) { sim = mkSim(); if (!sim) return; setStatus('paused'); }
+  if (sim.done) return;
+  stopTimer(); setCtrl('paused'); advance();
+  if (sim.done) finalize();
+}
+function doReset() {
+  stopTimer(); sim = null; cpiHist = []; destroyCharts();
+  document.getElementById('pGrid').innerHTML = '<div class="gridph"><div class="phicon">⬡</div><p>Press <strong style="color:var(--green)">RUN</strong> or <strong style="color:var(--blue)">STEP</strong> to begin simulation</p></div>';
+  document.getElementById('hzLog').innerHTML = '<div class="hzempty"><span class="hzok">✓</span> No hazards detected.</div>';
+  buildRegFile({}, {});
+  ['mCycles','mStalls'].forEach(id => setM(id, '0'));
+  ['mCpi','mSpeedup'].forEach(id => setM(id, '—'));
+  setM('mInstrs','0/0');
+  document.getElementById('progBar').style.width = '0%';
+  document.getElementById('hdrCycle').textContent = '0';
+  document.getElementById('hdrCpi').textContent   = '—';
+  document.getElementById('cycleBadge').textContent = 'CYCLE 0';
+  setStatus('ready'); setCtrl('idle');
+}
+
+function advance() {
+  sim.step();
+  renderGrid();
+  buildRegFile(sim.getRegs(), sim.getPrevRegs());
+  renderHazards();
+  renderMetrics();
+  const cpi = parseFloat(sim.getCPI());
+  if (!isNaN(cpi)) cpiHist.push(cpi);
+  renderLineChart();
+}
+
+function finalize() {
+  setStatus('done'); setCtrl('done');
+  renderGrid();
+  buildRegFile(sim.getRegs(), sim.getPrevRegs());
+  renderHazards(); renderMetrics();
+  renderBarChart(); renderLineChart();
+  toast(`✓ Done — ${sim.cycle} cycles · CPI ${sim.getCPI()} · Speedup ${sim.getSpeedup()}x`);
+}
+
+function stopTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+
+// ── RENDER GRID ──────────────────────────────────────
+function renderGrid() {
+  if (!sim) return;
+  const { _timeline, instrs, cycle: maxC } = sim;
+
+  // Build per-instruction lookup: cycle → entry
+  const lookup = _timeline.map(arr => {
+    const m = {}; arr.forEach(e => { m[e.cycle] = e; }); return m;
+  });
+
+  let h = '<div class="gw">';
+  // Header row
+  h += '<div class="ghdr"><div class="gcell glbl">INSTRUCTION</div>';
+  for (let c = 1; c <= maxC; c++) h += `<div class="gcell gcychdr">C${c}</div>`;
+  h += '</div>';
+
+  // Instruction rows
+  instrs.forEach((instr, idx) => {
+    const t = _timeline[idx];
+    const firstC = t.length ? t[0].cycle : 99999;
+    const lastC  = t.length ? t[t.length-1].cycle : 0;
+    const isActive = firstC <= maxC && lastC >= maxC;
+
+    h += `<div class="grow${isActive?' act':''}">`;
+    h += `<div class="gcell ginstr" title="${instr.raw}">`;
+    h += `<span class="iid">I${idx+1}</span>`;
+    h += `<span class="iop">${instr.op}</span>`;
+    h += `</div>`;
+
+    for (let c = 1; c <= maxC; c++) {
+      const e = lookup[idx][c];
+      if (e) {
+        const col = e.type === 'stall' ? SC.STALL : (SC[e.stage] || SC.STALL);
+        const label = e.type === 'stall' ? '✕' : e.stage;
+        const title = `${e.type === 'stall' ? 'STALL' : e.stage} @ C${c}`;
+        h += `<div class="gcell scell" style="background:${col.bg};color:${col.tx};border:1.5px solid ${col.brd};box-shadow:${col.gw}" title="${title}">${label}</div>`;
+      } else {
+        h += `<div class="gcell sempty"></div>`;
+      }
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+
+  document.getElementById('pGrid').innerHTML = h;
+  document.getElementById('cycleBadge').textContent = 'CYCLE ' + maxC;
+  document.getElementById('hdrCycle').textContent   = maxC;
+
+  // Auto-scroll to show latest cycle
+  const gs = document.querySelector('.gridscroll');
+  if (gs) gs.scrollLeft = gs.scrollWidth;
+}
+
+// ── RENDER HAZARDS ────────────────────────────────────
+function renderHazards() {
+  if (!sim) return;
+  const hz = sim.getVisibleHazards();
+  const el = document.getElementById('hzLog');
+  if (!hz.length) {
+    el.innerHTML = '<div class="hzempty"><span class="hzok">✓</span> No hazards detected up to current cycle.</div>';
+    return;
+  }
+  const rawCount = hz.filter(h => !h.fwd).length;
+  const fwdCount = hz.filter(h =>  h.fwd).length;
+  let h = `<div class="hzsum">
+    <span class="hstag raw">RAW: ${rawCount}</span>
+    <span class="hstag fwd">FWD: ${fwdCount}</span>
+    <span class="hstag stl">Stalls: ${sim.getStallsUpTo()}</span>
+  </div>`;
+  hz.slice(-8).reverse().forEach(e => {
+    h += `<div class="hzitem ${e.fwd?'hzfwd':'hzstall'}">
+      <div class="hzcyc">C${e.cycle}</div>
+      <div>
+        <div class="hztype">${e.fwd ? '⚡ FORWARDED' : '⚠ STALL'}</div>
+        <div class="hzrsn">${e.reason}</div>
+      </div>
+    </div>`;
+  });
+  el.innerHTML = h;
+}
+
+// ── RENDER METRICS ────────────────────────────────────
+function renderMetrics() {
+  if (!sim) return;
+  const done = sim.getCompleted();
+  const total = sim.instrs.length;
+  setM('mCycles',  sim.cycle);
+  setM('mCpi',     sim.getCPI());
+  setM('mSpeedup', sim.getSpeedup() !== '—' ? sim.getSpeedup() + 'x' : '—');
+  setM('mInstrs',  `${done}/${total}`);
+  setM('mStalls',  sim.getStallsUpTo());
+  document.getElementById('progBar').style.width = Math.min(100, done/total*100) + '%';
+  document.getElementById('hdrCpi').textContent  = sim.getCPI();
+}
+function setM(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+
+// ── CHARTS ────────────────────────────────────────────
+const CO = {
+  responsive: true, maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: { backgroundColor:'#0b0b18', borderColor:'#4fc3f7', borderWidth:1, titleColor:'#4fc3f7', bodyColor:'#ccd0e0' }
+  },
+  scales: {
+    x: { grid:{color:'rgba(255,255,255,0.035)'}, ticks:{color:'#3a3a5a',font:{family:'Share Tech Mono',size:9}} },
+    y: { grid:{color:'rgba(255,255,255,0.05)' }, ticks:{color:'#3a3a5a',font:{family:'Share Tech Mono',size:9}}, beginAtZero:true }
+  }
+};
+
+function renderBarChart() {
+  if (!sim) return;
+  const ctx = document.getElementById('barChart');
+  if (barCh) barCh.destroy();
+  barCh = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Pipelined', 'Non-Pipeline'],
+      datasets: [{
+        data: [sim.cycle, sim.getNPC()],
+        backgroundColor: ['rgba(0,229,255,0.55)', 'rgba(245,0,87,0.55)'],
+        borderColor:     ['#00e5ff', '#f50057'],
+        borderWidth: 2, borderRadius: 8
+      }]
+    },
+    options: CO
+  });
+}
+
+function renderLineChart() {
+  const ctx = document.getElementById('lineChart');
+  if (lineCh) lineCh.destroy();
+  lineCh = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: cpiHist.map((_,i) => 'C'+(i+1)),
+      datasets: [{
+        data: cpiHist,
+        borderColor: '#00e676', backgroundColor: 'rgba(0,230,118,0.09)',
+        borderWidth: 2, pointRadius: 2, pointBackgroundColor: '#00e676', tension: .4, fill: true
+      }]
+    },
+    options: { ...CO, scales: {
+      x: { ...CO.scales.x, ticks:{...CO.scales.x.ticks, maxTicksLimit:10} },
+      y: { ...CO.scales.y, suggestedMax: 3 }
+    }}
+  });
+}
+
+function destroyCharts() {
+  if (barCh)  { barCh.destroy();  barCh  = null; }
+  if (lineCh) { lineCh.destroy(); lineCh = null; }
+}
+
+// ── STATUS / CTRL ─────────────────────────────────────
+function setStatus(s) {
+  const el = document.getElementById('statusBadge');
+  const m = {
+    ready:   ['● READY',    's-ready'],
+    running: ['▶ RUNNING',  's-running'],
+    paused:  ['⏸ PAUSED',   's-paused'],
+    done:    ['✓ DONE',     's-done']
+  };
+  const [txt, cls] = m[s] || m.ready;
+  el.textContent = txt; el.className = 'sbadge ' + cls;
+}
+function setCtrl(s) {
+  document.getElementById('btnRun').disabled   = s === 'running';
+  document.getElementById('btnPause').disabled = s !== 'running';
+  document.getElementById('btnStep').disabled  = s === 'running' || s === 'done';
+  document.getElementById('btnReset').disabled = false;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3600);
+}
+</script>
+</body>
+</html>
