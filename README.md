@@ -1,37 +1,109 @@
-# Pipeline Processor Simulator
+# Pipeline Processor Simulator  
+###  Cyberpunk-Themed CPU Pipeline Visualizer
 
-An interactive educational CPU pipeline visualizer with real-time animation, hazard detection, and performance metrics.
+---
 
-## Features
-- Variable pipeline stages (2–6)
-- RAW hazard detection with forwarding
-- Load-use stall insertion
-- Register file with writeback
-- CPI, speedup, cycle metrics
-- Bar + line charts (Chart.js)
-- Preset programs + custom input
+## Overview
 
-## Run Locally
+This project is a **Pipeline Processor Simulator** that visually demonstrates how instructions are executed in a CPU using a **5-stage pipeline architecture**.
 
-```bash
-# Option 1: Python
-python -m http.server 8080
-# then open http://localhost:8080
+It provides an interactive interface to understand:
 
-# Option 2: Node.js
-npx serve .
-```
+- Instruction execution flow  
+- Pipeline stages (IF, ID, EX, MEM, WB)  
+- Data hazards and forwarding  
+- Pipeline stalls  
+- Performance metrics (CPI, cycles, etc.)  
 
-## Deploy to GitHub Pages
-1. Push to a GitHub repo
-2. Settings → Pages → Deploy from branch `main` / `root`
-3. Your site will be at `https://<user>.github.io/<repo>/`
+---
 
-## Supported Instructions
-`ADD, SUB, MUL, AND, OR, XOR, ADDI, SUBI, ANDI, ORI, LOAD/LW, STORE/SW, MOV, NOP`
+##  Demo
 
-## Controls
-- **RUN**: Auto-step through simulation
-- **PAUSE**: Freeze current state
-- **STEP**: Advance one cycle manually
-- **RESET**: Clear all state
+> Open `index.html` in your browser to run the simulator.
+
+---
+
+## ✨ Features
+
+- ⚙️ 5-stage pipeline simulation  
+- 🎯 Real-time pipeline visualization  
+- ⚠️ Hazard detection (RAW hazards)  
+- 🔄 Forwarding support  
+- ⏸️ Stall insertion  
+- 📊 Performance metrics display  
+- 🎨 Cyberpunk-themed UI  
+
+---
+
+##  Pipeline Stages
+
+| Stage | Description |
+|------|------------|
+| IF | Instruction Fetch |
+| ID | Instruction Decode |
+| EX | Execute |
+| MEM | Memory Access |
+| WB | Write Back |
+
+---
+
+## Sample Instructions
+LOAD R1, R0, 10
+ADD R2, R1, R1
+SUB R3, R2, R1
+MUL R4, R3, R2
+AND R5, R4, R3
+OR R6, R5, R4
+
+
+---
+
+##  How to Run
+
+1. Download or clone the repository  
+2. Open the project folder  
+3. Double-click `index.html`  
+
+_or_
+
+Right-click → **Open with Browser**
+
+---
+
+##  Controls
+
+- ▶ Run → Start simulation  
+- ⏸ Pause → Pause execution  
+- ⏭ Step → Execute one cycle  
+- 🔄 Reset → Restart simulation  
+
+---
+
+##  Output Metrics
+
+- Total Cycles  
+- Instructions Executed  
+- CPI (Cycles Per Instruction)  
+- Pipeline Stalls  
+- Forwarding Status  
+
+---
+
+##  Concepts Covered
+
+- Instruction Pipelining  
+- Data Hazards (RAW)  
+- Forwarding Techniques  
+- Pipeline Optimization  
+- CPU Performance Analysis  
+
+---
+
+##  Future Improvements
+
+- Branch prediction  
+- Cache simulation  
+- Multi-core pipeline  
+- File input for instructions  
+- Export results  
+
