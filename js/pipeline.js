@@ -84,6 +84,12 @@ export class PipelineSimulator {
     this.inFlight = [];
     // forwarding state: {instrIdx -> {ex_result_ready_cycle, mem_result_ready_cycle}}
     this.forwardingMap = {};
+    this.memory = new Array(256).fill(0);
+
+// sample values (you can change)
+this.memory[1] = 5;
+this.memory[2] = 10;
+this.memory[3] = 15;
   }
 
   /**
@@ -218,23 +224,69 @@ export class PipelineSimulator {
   }
 
   _writeBack(instrIdx) {
-    const instr = this.instructions[instrIdx];
-    if (!instr.dest || !instr.dest.startsWith('R')) return;
-    const r = parseInt(instr.dest.slice(1));
-    const s1 = this.registers[instr.src1] || 0;
-    const s2 = instr.src2 ? (this.registers[instr.src2] || 0) : (parseInt(instr.imm) || 0);
-    switch (instr.op) {
-      case 'ADD': case 'ADDI': this.registers[instr.dest] = s1 + s2; break;
-      case 'SUB': case 'SUBI': this.registers[instr.dest] = s1 - s2; break;
-      case 'AND': case 'ANDI': this.registers[instr.dest] = s1 & s2; break;
-      case 'OR':  case 'ORI':  this.registers[instr.dest] = s1 | s2; break;
-      case 'MUL': this.registers[instr.dest] = s1 * s2; break;
-      case 'XOR': this.registers[instr.dest] = s1 ^ s2; break;
-      case 'MOV': this.registers[instr.dest] = s1; break;
-      case 'LOAD': case 'LW': this.registers[instr.dest] = (s1 + parseInt(instr.imm || 0)) % 256; break;
-      default: this.registers[instr.dest] = s1 + s2;
+  const instr = this.instructions[instrIdx];
+  if (!instr.dest || !instr.dest.startsWith('R')) return;
+
+  const getVal = (reg) => this.registers[reg] ?? 0;
+
+  const s1 = instr.src1 ? getVal(instr.src1) : 0;
+  const s2 = instr.src2 
+      ? getVal(instr.src2) 
+      : (instr.imm !== null ? parseInt(instr.imm) : 0);
+
+  switch (instr.op) {
+    case 'ADD':
+    case 'ADDI':
+      this.registers[instr.dest] = s1 + s2;
+      break;
+
+    case 'SUB':
+    case 'SUBI':
+      this.registers[instr.dest] = s1 - s2;
+      break;
+
+    case 'AND':
+    case 'ANDI':
+      this.registers[instr.dest] = s1 & s2;
+      break;
+
+    case 'OR':
+    case 'ORI':
+      this.registers[instr.dest] = s1 | s2;
+      break;
+
+    case 'MUL':
+      this.registers[instr.dest] = s1 * s2;
+      break;
+
+    case 'XOR':
+      this.registers[instr.dest] = s1 ^ s2;
+      break;
+
+    case 'MOV':
+      this.registers[instr.dest] = s1;
+      break;
+
+    // ✅ FIXED LOAD (IMPORTANT)
+    case 'LOAD':
+    case 'LW': {
+      const addr = s1 + (parseInt(instr.imm) || 0);
+
+      // create memory if not exists
+      if (!this.memory) {
+        this.memory = new Array(256).fill(0);
+        this.memory[1] = 10; // sample value
+        this.memory[2] = 20;
+      }
+
+      this.registers[instr.dest] = this.memory[addr] || 0;
+      break;
     }
+
+    default:
+      this.registers[instr.dest] = s1 + s2;
   }
+}
 
   getCPI() {
     if (this.completedInstructions === 0) return 0;
